@@ -1,0 +1,7 @@
+requests
+json5
+librosa
+apache-airflow-providers-apache-spark
+minio~=7.2.8
+delta-spark==3.2.0
+

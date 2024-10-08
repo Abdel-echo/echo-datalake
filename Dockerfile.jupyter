@@ -1,0 +1,37 @@
+# Start from the Bitnami Spark 3.2.3 image
+FROM bitnami/spark:3.2.3
+
+# Switch to root to install packages
+USER root
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends vim \
+    && apt-get install -y libsndfile1
+
+# copy jar dependencies
+COPY jars_dependencies/aws-java-sdk-s3-1.12.772.jar /opt/bitnami/spark/jars
+COPY jars_dependencies/hadoop-aws-3.2.3.jar /opt/bitnami/spark/jars
+COPY jars_dependencies/aws-java-sdk-1.12.772.jar /opt/bitnami/spark/jars
+COPY jars_dependencies/hadoop-client-3.2.3.jar /opt/bitnami/spark/jars
+COPY jars_dependencies/aws-java-sdk-bundle-1.12.772.jar /opt/bitnami/spark/jars
+
+COPY requirements.txt /
+RUN  pip install --no-cache-dir -r /requirements.txt
+
+# Install Jupyter Notebook
+RUN pip3 install jupyter
+
+# Create a directory for Jupyter notebooks
+RUN mkdir -p /work/notebooks
+
+# Set the working directory
+WORKDIR /work/notebooks
+
+# Expose the Jupyter Notebook port
+EXPOSE 8888
+
+# Switch back to the non-root user
+USER 1001
+
+# Start Jupyter Notebook
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]

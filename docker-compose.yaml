@@ -1,0 +1,166 @@
+services:
+
+    # Airflow PostgreSQL Database
+  postgres:
+    image: postgres:14.0
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - network
+
+
+  webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    command: webserver
+    entrypoint: [ '/opt/airflow/scripts/entrypoint.sh' ]
+    depends_on:
+      - postgres
+    environment:
+      - LOAD_EX=n
+      - EXECUTOR=Sequential
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      - AIRFLOW_WEBSERVER_SECRET_KEY=this_is_a_very_secured_key
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts/entrypoint.sh:/opt/airflow/scripts/entrypoint.sh
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./spark_app:/opt/airflow/spark_app
+      - ./requirements.txt:/opt/airflow/requirements.txt
+      - ./data_source:/opt/airflow/data_source
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: [ 'CMD-SHELL', "[ -f /opt/airflow/airflow-webserver.pid ]" ]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      - network
+
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      webserver:
+        condition: service_healthy
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts/entrypoint.sh:/opt/airflow/scripts/entrypoint.sh
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./spark_app:/opt/airflow/spark_app
+      - ./requirements.txt:/opt/airflow/requirements.txt
+      - ./data_source/:/opt/airflow/data_source
+    environment:
+      - LOAD_EX=n
+      - EXECUTOR=Sequential
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      - AIRFLOW_WEBSERVER_SECRET_KEY=this_is_a_very_secured_key
+    command: bash -c "pip install -r ./requirements.txt && airflow db upgrade && airflow scheduler"
+    networks:
+      - network
+
+
+  spark-master:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: spark-master
+    command: bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "8090:8080"
+      - "7077:7077"
+    environment:
+      SPARK_UI_PORT: 8080
+      SPARK_MODE: master
+    volumes:
+      - ./:/home
+    networks:
+      - network
+
+  spark-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: spark-worker1
+    command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    depends_on:
+      - spark-master
+    environment:
+      SPARK_MODE: worker
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 4g
+      SPARK_MASTER_URL: spark://spark-master:7077
+    volumes:
+      - ./:/home
+    networks:
+      - network
+
+  minio:
+    image: minio/minio
+    hostname: minio
+    container_name: minio_datalake
+    ports:
+      - "9090:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: MINIOADMIN
+      MINIO_ROOT_PASSWORD: MINIOAADMIN
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - network
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc alias set echo_minio http://minio:9000 MINIOADMIN MINIOAADMIN) do echo '...waiting...' && sleep 2; done;
+      /usr/bin/mc mb echo_minio/landing;
+      /usr/bin/mc mb echo_minio/bronze;
+      /usr/bin/mc mb echo_minio/silver;
+      /usr/bin/mc mb echo_minio/gold;
+      /usr/bin/mc anonymous set public echo_minio/landing;
+      /usr/bin/mc anonymous set public echo_minio/bronze;
+      /usr/bin/mc anonymous set public echo_minio/silver;
+      /usr/bin/mc anonymous set public echo_minio/gold;
+      "
+    networks:
+      - network
+
+  jupyter-spark:
+    build:
+      context: .
+      dockerfile: Dockerfile.jupyter
+    networks:
+      - network
+    ports:
+      - "8888:8888"
+      - "4040-4080:4040-4080"
+    volumes:
+      - ./notebooks:/work/notebooks/
+      - ./data_source:/work/data_source/
+
+volumes:
+  spark_data:
+  minio_data:
+networks:
+  network:

@@ -1,0 +1,75 @@
+{
+    "table_name": "bdd_audio_source",
+    "source_path": "data_source/tests_raw_audio",
+    "destination_path": "bronze/landing",
+    "storage_format": "parquet",
+    "schema": [
+      {
+        "name": "audio_id",
+        "type": "LongType",
+        "nullable": false,
+        "primary_key": true,
+        "description": "Unique identifier for each audio record"
+      },
+      {
+        "name": "path_mp3",
+        "type": "StringType",
+        "nullable": true,
+        "description": "Path to audio source (MP3 format)"
+      },
+      {
+        "name": "path_wav",
+        "type": "StringType",
+        "nullable": true,
+        "description": "Path to audio source (WAV format)"
+      },
+      {
+        "name": "file_name",
+        "type": "StringType",
+        "nullable": true,
+        "description": "Name of the audio file"
+      },
+      {
+        "name": "audio_data_mp3",
+        "type": "ArrayType(FloatType)",
+        "nullable": true,
+        "description": "Vector of sampling values of the audio file (MP3 format)"
+      },
+      {
+        "name": "audio_data_wav",
+        "type": "ArrayType(FloatType)",
+        "nullable": true,
+        "description": "Vector of sampling values of the audio file (WAV format)"
+      },
+      {
+        "name": "sampling_rate",
+        "type": "IntegerType",
+        "nullable": true,
+        "description": "Sampling rate with which the audio data was read"
+      },
+      {
+        "name": "timestamp_start",
+        "type": "TimestampType",
+        "nullable": true,
+        "description": "Start date of the conversation recorded in the audio"
+      },
+      {
+        "name": "timestamp_end",
+        "type": "TimestampType",
+        "nullable": true,
+        "description": "End date of the conversation in the audio"
+      },
+      {
+        "name": "duration",
+        "type": "IntegerType",
+        "nullable": true,
+        "description": "Duration of the audio file (in seconds)"
+      },
+      {
+        "name": "channel",
+        "type": "IntegerType",
+        "nullable": true,
+        "description": "Recording channel of the audio"
+      }
+    ]
+  }

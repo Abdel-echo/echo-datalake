@@ -1,0 +1,18 @@
+{
+    "config": {
+      "minio_config": {
+        "endpoint": "http://your-minio-server:9000",
+        "access_key": "your-access-key",
+        "secret_key": "your-secret-key",
+        "use_ssl": true
+      },
+      "spark_config": {
+        "spark.hadoop.fs.s3a.endpoint": "http://your-minio-server:9000",
+        "spark.hadoop.fs.s3a.access.key": "your-access-key",
+        "spark.hadoop.fs.s3a.secret.key": "your-secret-key",
+        "spark.hadoop.fs.s3a.path.style.access": "true",
+        "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
+      }
+    }
+  }
+  
